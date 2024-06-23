@@ -19,7 +19,7 @@ export default function JobListItem({ jobItem, isActive }: JobListItemProps) {
 
         <div className="job-item__right">
           <BookmarkIcon />
-          <time className="job-item__time">{jobItem.date}d</time>
+          <time className="job-item__time">{jobItem.daysAgo}d</time>
         </div>
       </a>
     </li>
