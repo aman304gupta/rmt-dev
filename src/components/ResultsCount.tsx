@@ -1,10 +1,8 @@
-type ResultsCountProps = {
-  totalNumberOfResults: number;
-};
+import { useJobItemsContextContext } from "../lib/hooks";
 
-export default function ResultsCount({
-  totalNumberOfResults,
-}: ResultsCountProps) {
+export default function ResultsCount() {
+  const { totalNumberOfResults } = useJobItemsContextContext();
+
   return (
     <p className="count">
       {" "}
