@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
-import { JobItem } from "./types";
+import { useContext, useEffect, useState } from "react";
+import { JobItem, JobItemExpanded } from "./types";
 import { BASE_API_URL } from "./constants";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { handleError } from "./utils";
+import { BookmarksContext } from "../contexts/BookmarksContextProvider";
+import { ActiveIdContext } from "../contexts/ActiveIdContextProvider";
+
+// -------------------------------------------------
 
 type JobItemApiResponse = {
-  jobItem: JobItem;
+  jobItem: JobItemExpanded;
   public: boolean;
 };
 const fetchJobItem = async (activeId: number): Promise<JobItemApiResponse> => {
@@ -38,6 +42,30 @@ export function useJobItem(activeId: number | null) {
   const isLoading = isInitialLoading;
   return { jobItem, isLoading } as const;
 }
+
+export function useJobItems(ids: number[]) {
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ["job-item", id],
+      queryFn: () => fetchJobItem(id),
+      staleTime: 1000 * 60 * 60,
+      refetchOnWindowFocus: false,
+      retry: false,
+      onError: handleError,
+      enabled: Boolean(id),
+    })),
+  });
+
+  const jobItems = results
+    .map((result) => result.data?.jobItem)
+    .filter((jobItem) => Boolean(jobItem)) as JobItemExpanded[];
+
+  const isLoading = results.some((result) => result.isLoading);
+
+  return { jobItems, isLoading } as const;
+}
+
+//-------------------------------------------------
 
 export function useActiveId() {
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -80,7 +108,7 @@ const fetchJobItems = async (
   return data;
 };
 
-export function useJobItems(searchText: string) {
+export function useSearchQuery(searchText: string) {
   const { data, isInitialLoading } = useQuery(
     ["job-items", searchText],
     () => fetchJobItems(searchText),
@@ -111,3 +139,68 @@ export function useDebounce<T>(value: T, delay = 500): T {
 
   return debouncedValue;
 }
+
+export function useLocalStorage<T>(
+  key: string,
+  initialValue: T
+): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState(() =>
+    JSON.parse(localStorage.getItem(key) || JSON.stringify(initialValue))
+  );
+
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(value));
+  }, [value, key]);
+
+  return [value, setValue] as const;
+}
+
+export function useOnClickOutside(
+  refs: React.RefObject<HTMLElement>[],
+  handler: () => void
+) {
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (
+        e.target instanceof HTMLElement &&
+        refs.every((ref) => !ref.current?.contains(e.target as Node))
+      )
+        handler();
+    };
+
+    document.addEventListener("click", handleClick);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("click", handleClick);
+    };
+  }, [refs, handler]);
+}
+
+// -------------------ContextAPI Hooks------------------------------
+
+export function useBooksmarksContext() {
+  const context = useContext(BookmarksContext);
+
+  if (context === null) {
+    throw new Error(
+      "useBookmarksContext must be used within a BookmarksContextProvider"
+    );
+  }
+
+  return context;
+}
+
+export function useActiveIdContext() {
+  const context = useContext(ActiveIdContext);
+
+  if (context === null) {
+    throw new Error(
+      "useBookmarksContext must be used within a ActiveIdContextProvider"
+    );
+  }
+
+  return context;
+}
+
+// -------------------------------------------------
